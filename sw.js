@@ -1,5 +1,5 @@
 // keeps the bookmark designer working without internet
-const CACHE = 'bookmark-designer-1.1.0';
+const CACHE = 'bookmark-designer-1.2.0';
 const FILES = ['./', './index.html', './manifest.webmanifest', './icon-180.png', './icon-192.png', './icon-512.png', './icon-maskable-512.png'];
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES)).then(() => self.skipWaiting()));

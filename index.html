@@ -251,8 +251,8 @@ footer small{display:block;color:var(--mut);font-weight:600;letter-spacing:0;fon
 <div class="modal" id="result"><div class="card">
   <img id="resImg" alt="">
   <div class="info" id="resInfo"></div>
-  <div class="hint" id="resHint">اضغط «حفظ / مشاركة» ← «حفظ الصورة» يروح للصور، أو «حفظ في الملفات». وتقدر بعد تضغط مطوّلاً على الصورة.</div>
-  <div class="btns"><button class="primary" id="resSave">حفظ الملف</button><button class="secondary" id="resClose">إغلاق</button></div>
+  <div class="hint" id="resHint">آيفون: «حفظ / مشاركة» ← «حفظ الصورة». أندرويد: «تنزيل على الجهاز» يروح للمعرض. وتقدر بعد تضغط مطوّلاً على الصورة.</div>
+  <div class="btns"><button class="primary" id="resSave">حفظ الملف</button><button class="primary alt" id="resDl" style="display:none">تنزيل على الجهاز</button><button class="secondary" id="resClose">إغلاق</button></div>
 </div></div>
 <div id="busy">جاري التجهيز…</div>
 <div id="toast"></div>
@@ -665,13 +665,14 @@ const stamp=()=>new Date().toISOString().slice(0,16).replace(/[-:T]/g,'');
 async function showResult(blob,name,info,previewBlob){
   curFile={blob,name};const img=$('#resImg');if(img._u)URL.revokeObjectURL(img._u);
   const pv=previewBlob||blob;img._u=URL.createObjectURL(pv);img.src=img._u;
-  $('#resInfo').innerHTML=info;$('#resSave').textContent=downloads?'حفظ الملف':(canShareFile(name)?'حفظ / مشاركة':'تنزيل الملف');
+  $('#resInfo').innerHTML=info;$('#resSave').textContent=downloads?'حفظ الملف':(canShareFile(name)?'حفظ / مشاركة':'تنزيل الملف');$('#resDl').style.display=(!downloads&&canShareFile(name))?'':'none';
   $('#resHint').style.display=name.endsWith('.pdf')?'none':'';
   $('#result').classList.add('show');
 }
 $('#resClose').onclick=()=>$('#result').classList.remove('show');
 function canShareFile(name){try{return !!(navigator.canShare&&navigator.canShare({files:[new File([new Blob(['x'])],name,{type:name.endsWith('.pdf')?'application/pdf':'image/png'})]}));}catch(e){return false;}}
 function plainDownload(){const a=document.createElement('a');a.href=URL.createObjectURL(curFile.blob);a.download=curFile.name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},4000);}
+$('#resDl').onclick=()=>{if(curFile){plainDownload();toast('انحفظ بمجلد التنزيلات (Downloads) ويطلع بالمعرض');}};
 $('#resSave').onclick=async()=>{if(!curFile)return;
   if(downloads){try{await downloads.save({filename:curFile.name,data:curFile.blob});toast('تم الحفظ ✓');}
     catch(e){const c=e&&e.code;if(c==='declined')return;if(c==='rate_limited')return toast('انتظر شوي وجرّب مرة ثانية');toast('الحفظ ما اشتغل هنا — اضغط مطولاً على الصورة واحفظها');}return;}
