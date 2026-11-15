@@ -200,6 +200,9 @@ footer small{display:block;color:var(--mut);font-weight:600;letter-spacing:0;fon
   <!-- STEP 2 -->
   <div class="step" data-step="1">
     <div class="shapes" id="shapes"></div>
+    <span class="lbl" style="margin-top:16px">أشكال مزخرفة</span>
+    <div class="shapes" id="shapes2"></div>
+    <div id="neckBox" class="slider" style="margin-top:14px;display:none"><span>عرض الوسط</span><input type="range" id="rNeck" min="0.25" max="1" step="0.01"><output></output></div>
     <div id="radBox" class="slider" style="margin-top:14px"><span>استدارة الزوايا</span><input type="range" id="rRad" min="0" max="1.5" step="0.05"><output></output></div>
     <div id="borderBox" style="margin-top:14px;display:none">
       <div class="slider"><span>الحافة البيضاء</span><input type="range" id="rBorder" min="0.05" max="0.8" step="0.01"><output></output></div>
@@ -258,7 +261,7 @@ footer small{display:block;color:var(--mut);font-weight:600;letter-spacing:0;fon
 "use strict";
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const P0=()=>({fit:'cover',zoom:1,ox:0,oy:0});
-const S={unit:'cm',W:4,H:6,bleedOn:true,bleed:0.3,shape:'rounded',radius:0.4,border:0.25,flip:true,mirror:false,bg:'#ffffff',
+const S={unit:'cm',W:4,H:6,bleedOn:true,bleed:0.3,shape:'rounded',neck:null,radius:0.4,border:0.25,flip:true,mirror:false,bg:'#ffffff',
   cutLine:false,cutColor:'#e6007e',foldMark:false,safe:true,exportMode:'print',half:'bottom',tool:'move',brush:22,tol:30,zoom:1,step:0,
   img:{main:null,top:null},place:{main:P0(),top:P0()}};
 const DPI=300, PXCM=DPI/2.54;
@@ -272,7 +275,50 @@ const fmtN=cm=>S.unit==='in'?+(cm/2.54).toFixed(2):+cm.toFixed(2);
 /* ---------- geometry ---------- */
 function geo(mode){const b=mode==='finished'?0:(S.bleedOn?S.bleed:0);const contour=S.shape==='contour';return{b,m:b+(contour?S.border:0),contour};}
 function rrect(c,x,y,w,h,r){c.moveTo(x+r,y);c.arcTo(x+w,y,x+w,y+h,r);c.arcTo(x+w,y+h,x,y+h,r);c.arcTo(x,y+h,x,y,r);c.arcTo(x,y,x+w,y,r);c.closePath();}
+
+/* decorative shapes: params are relative (sizes ÷ width, vertical positions ÷ half-height) */
+const DECO={
+  frame:   {name:'إطار',      top:'flat', corner:'notch',c:.16,side:'concave',dd:.05,waist:.86,trans:'notch',n:.8,k:.14},
+  domeneck:{name:'قبة ورقبة',  top:'dome', d:.3,T:.1,corner:'notch',c:.1,side:'nick',nr:.07,ym:.28,waist:.45,trans:'curve',n:.42,k:.15},
+  archhour:{name:'قوس وخصر',  top:'arch', a:.14,corner:'square',side:'straight',waist:.6,trans:'notch',n:.68,k:.32},
+  ogee:    {name:'مدبب',      top:'point',d:.3,T:.14,corner:'notch',c:.09,side:'straight',waist:.6,trans:'curve',n:.55,k:.2},
+  bulb:    {name:'بصلة',      top:'dome', d:.28,T:.09,corner:'round',c:.2,side:'straight',waist:.3,trans:'notch',n:.42,k:.24},
+  dumbbell:{name:'دمبل',      top:'point',d:.25,T:.09,corner:'round',c:.22,side:'nick',nr:.05,ym:.2,waist:.3,trans:'notch',n:.34,k:.16},
+  tabhour: {name:'قبة وخصر',  top:'dome', d:.3,T:.11,corner:'notch',c:.1,side:'straight',waist:.6,trans:'notch',n:.62,k:.24},
+  label:   {name:'لوحة',      top:'dome', d:.25,T:.08,corner:'notch',c:.12,side:'nick',nr:.06,ym:.3,waist:.66,trans:'curve',n:.58,k:.16}
+};
+function decoQuarter(p,w,h,n){ // top-right quarter: from top centre to the fold, x measured from the centre line
+  const R=w/2,pts=[],L=(x,y)=>pts.push([x,y]);
+  const cub=(x0,y0,x1,y1,x2,y2,x3,y3,m=18)=>{for(let i=1;i<=m;i++){const t=i/m,u=1-t;L(u*u*u*x0+3*u*u*t*x1+3*u*t*t*x2+t*t*t*x3,u*u*u*y0+3*u*u*t*y1+3*u*t*t*y2+t*t*t*y3);}};
+  const arc=(cx,cy,rx,ry,a0,a1,m=16)=>{for(let i=1;i<=m;i++){const a=a0+(a1-a0)*i/m;L(cx+rx*Math.cos(a),cy+ry*Math.sin(a));}};
+  L(0,0);let yb=0;
+  if(p.top==='arch'){const a=p.a*w;cub(0,0,R*.6,0,R,a*.4,R,a);yb=a;}
+  else if(p.top==='dome'){const d=p.d*w,T=p.T*w;cub(0,0,d*.65,0,d*.75,T,d,T);yb=T;}
+  else if(p.top==='point'){const d=p.d*w,T=p.T*w;cub(0,0,d*.25,0,d*.45,T,d,T);yb=T;}
+  let ys=yb;
+  if(p.top!=='arch'){
+    if(p.corner==='notch'){const c=p.c*w;L(R-c,yb);arc(R,yb,c,c,Math.PI,Math.PI/2);ys=yb+c;}
+    else if(p.corner==='round'){const c=p.c*w;L(R-c,yb);arc(R-c,yb+c,c,c,-Math.PI/2,0);ys=yb+c;}
+    else L(R,yb);
+  }
+  const yw=Math.max(ys,p.waist*h),yn=Math.min(h,yw+p.k*h);
+  if(p.side==='concave'){const dd=p.dd*w;cub(R,ys,R-dd,ys+(yw-ys)*.3,R-dd,ys+(yw-ys)*.7,R,yw);}
+  else if(p.side==='nick'){const nr=p.nr*w,ym=Math.min(yw-nr,Math.max(ys+nr,p.ym*h));L(R,ym-nr);arc(R,ym,nr,nr,-Math.PI/2,-1.5*Math.PI);L(R,yw);}
+  else L(R,yw);
+  const nx=n*R;
+  if(p.trans==='notch')arc(R,yn,R-nx,yn-yw,-Math.PI/2,-Math.PI,20);
+  else cub(R,yw,R,yw+(yn-yw)*.55,nx,yn-(yn-yw)*.55,nx,yn);
+  L(nx,h);
+  return pts;
+}
+function decoPath(c,x,y,w,h2,shape){
+  const p=DECO[shape],h=h2/2,n=(shape===S.shape&&S.neck)?S.neck:p.n,q=decoQuarter(p,w,h,n),cx=x+w/2;
+  const right=q.concat(q.slice().reverse().map(([a,b])=>[a,2*h-b]));
+  const all=right.concat(right.slice().reverse().map(([a,b])=>[-a,b]));
+  c.moveTo(cx+all[0][0],y+all[0][1]);for(let i=1;i<all.length;i++)c.lineTo(cx+all[i][0],y+all[i][1]);c.closePath();
+}
 function pathShape(c,x,y,w,h,shape,r){
+  if(DECO[shape]){c.beginPath();decoPath(c,x,y,w,h,shape);return;}
   c.beginPath();
   if(shape==='rounded'){rrect(c,x,y,w,h,Math.max(0.01,Math.min(r,w/2,h/2)));return;}
   if(shape==='pill'){const R=w/2;c.moveTo(x,y+R);c.arc(x+R,y+R,R,Math.PI,0);c.lineTo(x+w,y+h-R);c.arc(x+R,y+h-R,R,0,Math.PI);c.closePath();return;}
@@ -499,6 +545,7 @@ $('#cFold').onchange=e=>{S.foldMark=e.target.checked;};
 $('#cSafe').onchange=e=>{S.safe=e.target.checked;draw();};
 $('#cBleed').onchange=e=>{S.bleedOn=e.target.checked;syncUI();draw();};
 $('#rBleed').oninput=e=>{S.bleed=+e.target.value;syncUI();draw();};
+$('#rNeck').oninput=e=>{S.neck=+e.target.value;syncUI();draw();drawShapeIcons();};
 $('#rRad').oninput=e=>{S.radius=+e.target.value;syncUI();draw();};
 $('#rBorder').oninput=e=>{S.border=+e.target.value;syncUI();draw();};
 function readSize(id,k){const v=parseFloat($(id).value);if(!(v>0))return;const cm=S.unit==='in'?v*2.54:v;S[k]=Math.min(30,Math.max(1,cm));syncUI(true);draw();}
@@ -507,12 +554,14 @@ const PRESETS=[[3,6],[4,6],[4,7],[5,7],[5,8]];
 $('#presets').innerHTML=PRESETS.map(([w,h])=>`<button data-w="${w}" data-h="${h}">${w} × ${h} cm</button>`).join('');
 $('#presets').addEventListener('click',e=>{const b=e.target.closest('button');if(b){S.W=+b.dataset.w;S.H=+b.dataset.h;syncUI();draw();}});
 const SHAPES=[['rect','مستطيل'],['rounded','زوايا دائرية'],['arch','قوس'],['pill','كبسولة'],['ribbon','شريطة'],['contour','حسب التصميم']];
-$('#shapes').innerHTML=SHAPES.map(([k,n])=>`<button data-s="${k}"><canvas width="68" height="120"></canvas>${n}</button>`).join('');
-function drawShapeIcons(){$$('#shapes button').forEach(b=>{const c=b.querySelector('canvas').getContext('2d'),k=b.dataset.s;c.fillStyle=getComputedStyle(document.documentElement).getPropertyValue('--g2').trim()||'#7cc3ec';c.clearRect(0,0,68,120);
+const btn=([k,n])=>`<button data-s="${k}"><canvas width="68" height="120"></canvas>${n}</button>`;
+$('#shapes').innerHTML=SHAPES.map(btn).join('');
+$('#shapes2').innerHTML=Object.entries(DECO).map(([k,p])=>btn([k,p.name])).join('');
+function drawShapeIcons(){$$('.shapes button').forEach(b=>{const c=b.querySelector('canvas').getContext('2d'),k=b.dataset.s;c.fillStyle=getComputedStyle(document.documentElement).getPropertyValue('--g2').trim()||'#7cc3ec';c.clearRect(0,0,68,120);
   if(k==='contour'){c.beginPath();c.moveTo(14,22);c.bezierCurveTo(10,6,30,8,34,16);c.bezierCurveTo(40,4,60,10,54,26);c.lineTo(58,96);c.bezierCurveTo(64,112,40,116,34,104);c.bezierCurveTo(26,118,6,110,12,94);c.closePath();c.fill();}
   else{pathShape(c,10,6,48,108,k,10);c.fill();}
   c.strokeStyle='#fff';c.setLineDash([4,3]);c.lineWidth=2;c.beginPath();c.moveTo(6,60);c.lineTo(62,60);c.stroke();
-  b.onclick=()=>{S.shape=k;syncUI();draw();};});}
+  b.onclick=()=>{S.shape=k;S.neck=DECO[k]?DECO[k].n:null;syncUI();draw();};});}
 function setTheme(t){document.documentElement.dataset.theme=t;try{localStorage.setItem('bm-theme',t);}catch(e){}
   $$('#themes button').forEach(b=>b.classList.toggle('on',b.dataset.t===t));const tc=document.querySelector('meta[name=theme-color]');if(tc)tc.content=t==='mint'?'#26a383':'#4a9fd8';drawShapeIcons();}
 $$('#themes button').forEach(b=>b.onclick=()=>setTheme(b.dataset.t));
@@ -552,8 +601,8 @@ function syncUI(keepInputs){
   $('#rBleed').value=S.bleed;$('#rBleed').nextElementSibling.textContent=fmt(S.bleed);$('#rBleed').disabled=!S.bleedOn;
   $('#rRad').value=S.radius;$('#rRad').nextElementSibling.textContent=fmt(S.radius);
   $('#rBorder').value=S.border;$('#rBorder').nextElementSibling.textContent=fmt(S.border);
-  $$('#shapes button').forEach(b=>b.classList.toggle('on',b.dataset.s===S.shape));
-  $('#radBox').style.display=S.shape==='rounded'?'':'none';$('#borderBox').style.display=S.shape==='contour'?'':'none';
+  $$('.shapes button').forEach(b=>b.classList.toggle('on',b.dataset.s===S.shape));
+  $('#radBox').style.display=S.shape==='rounded'?'':'none';$('#neckBox').style.display=DECO[S.shape]?'':'none';if(DECO[S.shape]){$('#rNeck').value=S.neck;$('#rNeck').nextElementSibling.textContent=Math.round(S.neck*100)+'%';}$('#borderBox').style.display=S.shape==='contour'?'':'none';
   $$('#presets button').forEach(b=>b.classList.toggle('on',+b.dataset.w===S.W&&+b.dataset.h===S.H));
   if(!keepInputs||document.activeElement!==$('#iW'))$('#iW').value=fmtN(S.W);
   if(!keepInputs||document.activeElement!==$('#iH'))$('#iH').value=fmtN(S.H);
